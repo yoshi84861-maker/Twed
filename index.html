@@ -3,11 +3,144 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>湖水綠匯率換算器</title>
+    <title>莫蘭迪綠匯率計算機</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;500;700&display=swap');
-        body { font-family: 'Noto Sans TC', sans-serif; background-color: #f2f7f7; }
-        .teal-gradient { background: linear-gradient(135deg, #4fd1c5 0%, #38b2ac 100%); }
-        .app-shell { max-width: 480px; margin: 0 auto; min-height: 100vh; background: #fff; }
-        .
+        body { font-family: 'Noto Sans TC', sans-serif; background-color: #f4f6f4; color: #5a6b5d; }
+        
+        /* 莫蘭迪綠配色方案 */
+        .morandi-header { background-color: #8da090; }
+        .morandi-bg { background-color: #a7b8a8; }
+        .morandi-card { background-color: #ffffff; border: 1px solid #d1dbd2; }
+        .morandi-input-bg { background-color: #f8faf8; border: 1px solid #c8d4c9; }
+        .morandi-text { color: #5a6b5d; }
+        .morandi-accent { color: #768a79; }
+
+        .drop-shadow-morandi { filter: drop-shadow(0 4px 10px rgba(141, 160, 144, 0.2)); }
+        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        select { appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235a6b5d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 0.5rem center; background-size: 1em; }
+    </style>
+</head>
+<body class="antialiased">
+
+<div class="max-w-md mx-auto min-h-screen bg-white shadow-2xl flex flex-col">
+    <header class="p-10 morandi-header text-white rounded-b-[3rem] text-center shadow-md">
+        <h1 class="text-2xl font-medium tracking-widest mb-1">匯率計算機</h1>
+        <p id="status" class="text-xs opacity-80 font-light">數據讀取中...</p>
+    </header>
+
+    <main class="p-8 -mt-8 space-y-6">
+        <div class="morandi-card p-6 rounded-[2rem] drop-shadow-morandi">
+            <div class="flex justify-between items-center mb-3">
+                <select id="baseCurrency" onchange="calculateAll()" class="bg-transparent font-bold morandi-text outline-none pr-6 cursor-pointer text-sm tracking-widest">
+                    <option value="TWD">台幣 TWD</option>
+                    <option value="JPY">日幣 JPY</option>
+                    <option value="CNY">人民幣 CNY</option>
+                </select>
+                <div id="flag-icon">🇹🇼</div>
+            </div>
+            <div class="flex items-center">
+                <input type="number" id="mainInput" value="1000" oninput="calculateAll()" 
+                    class="w-full text-4xl font-light outline-none bg-transparent morandi-text">
+            </div>
+        </div>
+
+        <div class="space-y-4">
+            <div id="card-1" class="morandi-input-bg p-5 rounded-3xl flex justify-between items-center relative">
+                <div id="tag-1" class="hidden absolute -top-2 left-6 bg-[#d9a39a] text-white text-[9px] px-2 py-0.5 rounded-full">近期低點</div>
+                <div>
+                    <p id="label-1" class="text-xs morandi-accent font-medium mb-1 uppercase tracking-tight">日幣 JPY</p>
+                    <p id="rate-1" class="text-[10px] opacity-60 font-mono">匯率: --</p>
+                </div>
+                <div id="res-1" class="text-2xl font-medium morandi-text">0.00</div>
+            </div>
+
+            <div id="card-2" class="morandi-input-bg p-5 rounded-3xl flex justify-between items-center relative">
+                <div id="tag-2" class="hidden absolute -top-2 left-6 bg-[#d9a39a] text-white text-[9px] px-2 py-0.5 rounded-full">近期低點</div>
+                <div>
+                    <p id="label-2" class="text-xs morandi-accent font-medium mb-1 uppercase tracking-tight">人民幣 CNY</p>
+                    <p id="rate-2" class="text-[10px] opacity-60 font-mono">匯率: --</p>
+                </div>
+                <div id="res-2" class="text-2xl font-medium morandi-text">0.00</div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="mt-auto p-10">
+        <button onclick="fetchLatest()" class="w-full py-4 morandi-bg text-white rounded-2xl font-medium shadow-sm active:scale-95 transition-all text-xs tracking-[0.2em]">
+            REFRESH DATA
+        </button>
+    </footer>
+</div>
+
+<script>
+    let rates = { JPY: 4.72, CNY: 0.223 }; // TWD 為基準
+    const flags = { TWD: '🇹🇼', JPY: '🇯🇵', CNY: '🇨🇳' };
+    const lowBenchmarks = { JPY: 4.68, CNY: 0.221 };
+
+    async function fetchLatest() {
+        document.getElementById('status').innerText = "數據同步中...";
+        try {
+            const res = await fetch('https://open.er-api.com/v6/latest/TWD');
+            const data = await res.json();
+            rates.JPY = data.rates.JPY;
+            rates.CNY = data.rates.CNY;
+            document.getElementById('status').innerText = "數據更新於: " + new Date().toLocaleTimeString();
+            calculateAll();
+        } catch (e) {
+            document.getElementById('status').innerText = "使用離線數據模式";
+            calculateAll();
+        }
+    }
+
+    function calculateAll() {
+        const base = document.getElementById('baseCurrency').value;
+        const input = parseFloat(document.getElementById('mainInput').value) || 0;
+        document.getElementById('flag-icon').innerText = flags[base];
+
+        const r1 = document.getElementById('res-1');
+        const r2 = document.getElementById('res-2');
+        const l1 = document.getElementById('label-1');
+        const l2 = document.getElementById('label-2');
+        const rt1 = document.getElementById('rate-1');
+        const rt2 = document.getElementById('rate-2');
+        const tag1 = document.getElementById('tag-1');
+        const tag2 = document.getElementById('tag-2');
+
+        if (base === 'TWD') {
+            l1.innerText = "日幣 JPY";
+            l2.innerText = "人民幣 CNY";
+            r1.innerText = (input * rates.JPY).toLocaleString(undefined, {maximumFractionDigits: 2});
+            r2.innerText = (input * rates.CNY).toLocaleString(undefined, {maximumFractionDigits: 2});
+            rt1.innerText = `1 TWD = ${rates.JPY.toFixed(4)} JPY`;
+            rt2.innerText = `1 TWD = ${rates.CNY.toFixed(4)} CNY`;
+            
+            // 低點判定 (當 TWD 換更多 JPY 時)
+            rates.JPY >= lowBenchmarks.JPY ? tag1.classList.remove('hidden') : tag1.classList.add('hidden');
+            rates.CNY >= lowBenchmarks.CNY ? tag2.classList.remove('hidden') : tag2.classList.add('hidden');
+
+        } else if (base === 'JPY') {
+            l1.innerText = "台幣 TWD";
+            l2.innerText = "人民幣 CNY";
+            r1.innerText = (input / rates.JPY).toLocaleString(undefined, {maximumFractionDigits: 2});
+            r2.innerText = ((input / rates.JPY) * rates.CNY).toLocaleString(undefined, {maximumFractionDigits: 2});
+            rt1.innerText = `1 JPY = ${(1/rates.JPY).toFixed(4)} TWD`;
+            rt2.innerText = `1 JPY = ${(rates.CNY/rates.JPY).toFixed(4)} CNY`;
+            tag1.classList.add('hidden'); tag2.classList.add('hidden');
+
+        } else if (base === 'CNY') {
+            l1.innerText = "台幣 TWD";
+            l2.innerText = "日幣 JPY";
+            r1.innerText = (input / rates.CNY).toLocaleString(undefined, {maximumFractionDigits: 2});
+            r2.innerText = ((input / rates.CNY) * rates.JPY).toLocaleString(undefined, {maximumFractionDigits: 2});
+            rt1.innerText = `1 CNY = ${(1/rates.CNY).toFixed(4)} TWD`;
+            rt2.innerText = `1 CNY = ${(rates.JPY/rates.CNY).toFixed(4)} JPY`;
+            tag1.classList.add('hidden'); tag2.classList.add('hidden');
+        }
+    }
+
+    fetchLatest();
+</script>
+</body>
+</html>
