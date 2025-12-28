@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>台幣匯率即時監測 - GitHub 版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #f3f4f6; }
+        .ios-shadow { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
+    </style>
+</head>
+<body class="flex justify-center min-h-screen bg-slate-100">
+
+    <div class="w-full max-w-md bg-white min-h-screen md:min-h-[800px] md:my-10 md:rounded-[3rem] shadow-2xl overflow-hidden flex flex-col">
+        <div class="h-6 bg-blue-700 w-full"></div>
+
+        <div class="bg-blue-600 p-8 pb-12 text-white">
+            <h1 class="text-2xl font-bold tracking-tight">匯率換算</h1>
+            <p id="updateTime" class="text-blue-200 text-xs mt-1">載入中...</p>
+        </div>
+
+        <div class="px-6 -mt-8 flex-grow">
+            <div class="bg-white rounded-3xl p-6 ios-shadow space-y-6">
+                
+                <div class="border-b border-gray-100 pb-4">
+                    <label class="text-xs font-bold text-blue-600 uppercase tracking-wider">持有幣別</label>
+                    <div class="flex items-center justify-between mt-2">
+                        <div class="flex items-center gap-3">
+                            <img src="https://flagcdn.com/w40/tw.png" class="w-8 h-5 object-cover rounded shadow-sm">
+                            <span class="font-bold text-gray-700">TWD</span>
+                        </div>
+                        <input type="number" id="twdAmount" value="1000" oninput="convert()" 
+                            class="text-3xl font-light text-right w-1/2 outline-none focus:text-blue-600 transition-colors">
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 rounded-2xl p-4 transition-all hover:bg-gray-100">
+                    <div class="flex justify-between items-start">
+                        <div class="flex items-center gap-2">
+                            <img src="https://flagcdn.com/w40/jp.png" class="w-6 h-4 object-cover rounded-sm">
+                            <span class="text-sm font-semibold text-gray-600">JPY 日幣</span>
+                        </div>
+                        <span id="jpyLowTag" class="hidden bg-red-100 text-red-600 text-[10px] px-2 py-0.5 rounded-full font-bold">5日低點</span>
+                    </div>
+                    <div class="flex justify-between items-end mt-2">
+                        <div class="text-[10px] text-gray-400">
+                            現鈔參考匯率：<span id="jpyRate">--</span>
+                            <br>5日最低：<span id="jpyLow">--</span>
+                        </div>
+                        <div id="jpyResult" class="text-2xl font-semibold text-gray-800 tracking-tight">0.00</div>
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 rounded-2xl p-4 transition-all hover:bg-gray-100">
+                    <div class="flex justify-between items-start">
+                        <div class="flex items-center gap-2">
+                            <img src="https://flagcdn.com/w40/cn.png" class="w-6 h-4 object-cover rounded-sm">
+                            <span class="text-sm font-semibold text-gray-600">CNY 人民幣</span>
+                        </div>
+                        <span id="cnyLowTag" class="hidden bg-red-100 text-red-600 text-[10px] px-2 py-0.5 rounded-full font-bold">5日低點</span>
+                    </div>
+                    <div class="flex justify-between items-end mt-2">
+                        <div class="text-[10px] text-gray-400">
+                            現鈔參考匯率：<span id="cnyRate">--</span>
+                            <br>5日最低：<span id="cnyLow">--</span>
+                        </div>
+                        <div id="cnyResult" class="text-2xl font-semibold text-gray-800 tracking-tight">0.00</div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="p-8">
+            <button onclick="fetchRates()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-2xl font-bold shadow-lg shadow-blue-200 active:scale-95 transition-all text-sm">
+                手動刷新數據
+            </button>
+            <p class="text-center text-gray-400 text-[10px] mt-4 uppercase tracking-widest">Powered by GitHub Pages</p>
+        </div>
+    </div>
+
+    <script>
+        // 匯率數據容器
+        let rates = { JPY: 0, CNY: 0 };
+        // 模擬五日低點數據（真實情況需付費API，這裡以當前匯率略低的值做演示，你可手動修改測試）
+        let historyLow = { JPY: 4.85, CNY: 0.215 };
+
+        async function fetchRates() {
+            try {
+                const res = await fetch('https://open.er-api.com/v6/latest/TWD');
+                const data = await response = await res.json();
+                
+                rates.JPY = data.rates.JPY;
+                rates.CNY = data.rates.CNY;
+
+                // 更新畫面數值
+                document.getElementById('jpyRate').innerText = rates.JPY.toFixed(4);
+                document.getElementById('cnyRate').innerText = rates.CNY.toFixed(4);
+                document.getElementById('jpyLow').innerText = historyLow.JPY;
+                document.getElementById('cnyLow').innerText = historyLow.CNY;
+                document.getElementById('updateTime').innerText = `最後更新: ${new Date().toLocaleTimeString()}`;
+
+                // 低點判定 (如果當前匯率小於或等於歷史低點+0.01 範圍)
+                if(rates.JPY <= historyLow.JPY + 0.05) document.getElementById('jpyLowTag').classList.remove('hidden');
+                if(rates.CNY <= historyLow.CNY + 0.005) document.getElementById('cnyLowTag').classList.remove('hidden');
+
+                convert();
+            } catch (e) {
+                console.error("無法獲取匯率");
+            }
+        }
+
+        function convert() {
+            const amount = document.getElementById('twdAmount').value || 0;
+            document.getElementById('jpyResult').innerText = (amount * rates.JPY).toLocaleString(undefined, {maximumFractionDigits: 1});
+            document.getElementById('cnyResult').innerText = (amount * rates.CNY).toLocaleString(undefined, {maximumFractionDigits: 2});
+        }
+
+        fetchRates();
+    </script>
+</body>
+</html>
