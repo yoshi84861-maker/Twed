@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台幣匯率監測 - 自動比對版</title>
+    <title>台幣匯率監測 - 穩定增強版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #f3f4f6; }
@@ -18,21 +18,18 @@
 
         <div class="bg-blue-600 p-8 pb-12 text-white">
             <h1 class="text-2xl font-bold tracking-tight">匯率自動比對</h1>
-            <p id="statusText" class="text-blue-200 text-xs mt-1">正在獲取歷史數據...</p>
+            <p id="statusText" class="text-blue-100 text-xs mt-1">連線中...</p>
         </div>
 
         <div class="px-6 -mt-8 flex-grow">
             <div class="bg-white rounded-3xl p-6 ios-shadow space-y-6 border border-gray-50">
                 
                 <div class="border-b border-gray-100 pb-4">
-                    <label class="text-[10px] font-bold text-blue-600 uppercase tracking-[0.2em]">輸入台幣金額</label>
+                    <label class="text-[10px] font-bold text-blue-600 uppercase tracking-[0.2em]">台幣 TWD</label>
                     <div class="flex items-center justify-between mt-1">
-                        <div class="flex items-center gap-2">
-                            <img src="https://flagcdn.com/w40/tw.png" class="w-6 rounded-sm">
-                            <span class="font-bold text-gray-700">TWD</span>
-                        </div>
+                        <img src="https://flagcdn.com/w40/tw.png" class="w-6 rounded-sm">
                         <input type="number" id="twdAmount" value="1000" oninput="convert()" 
-                            class="text-3xl font-light text-right w-1/2 outline-none">
+                            class="text-3xl font-light text-right w-2/3 outline-none">
                     </div>
                 </div>
 
@@ -42,115 +39,7 @@
                             <img src="https://flagcdn.com/w40/jp.png" class="w-6 rounded-sm">
                             <span class="text-sm font-semibold text-gray-600">日幣 JPY</span>
                         </div>
-                        <span id="jpyLowTag" class="hidden bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full animate-pulse">近期低點</span>
+                        <span id="jpyLowTag" class="hidden bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full animate-bounce">近期低點</span>
                     </div>
                     <div class="flex justify-between items-end mt-2">
                         <div class="text-[10px] text-gray-400">
-                            即時：<span id="jpyRate">--</span><br>
-                            5日最低：<span id="jpyLowValue" class="text-red-400">--</span>
-                        </div>
-                        <div id="jpyResult" class="text-2xl font-bold text-gray-800 tracking-tighter">0.00</div>
-                    </div>
-                </div>
-
-                <div id="cnyCard" class="bg-gray-50 rounded-2xl p-4 transition-all">
-                    <div class="flex justify-between items-start">
-                        <div class="flex items-center gap-2">
-                            <img src="https://flagcdn.com/w40/cn.png" class="w-6 rounded-sm">
-                            <span class="text-sm font-semibold text-gray-600">人民幣 CNY</span>
-                        </div>
-                        <span id="cnyLowTag" class="hidden bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full animate-pulse">近期低點</span>
-                    </div>
-                    <div class="flex justify-between items-end mt-2">
-                        <div class="text-[10px] text-gray-400">
-                            即時：<span id="cnyRate">--</span><br>
-                            5日最低：<span id="cnyLowValue" class="text-red-400">--</span>
-                        </div>
-                        <div id="cnyResult" class="text-2xl font-bold text-gray-800 tracking-tighter">0.00</div>
-                    </div>
-                </div>
-
-            </div>
-        </div>
-
-        <div class="p-8">
-            <button onclick="fetchAllData()" class="w-full bg-slate-800 text-white py-4 rounded-2xl font-bold active:scale-95 transition-all text-sm">
-                刷新即時數據
-            </button>
-        </div>
-    </div>
-
-    <script>
-        let currentRates = { JPY: 0, CNY: 0 };
-        let lowRates = { JPY: 999, CNY: 999 };
-
-        async function fetchAllData() {
-            document.getElementById('statusText').innerText = "更新中...";
-            
-            try {
-                // 1. 獲取今天日期與 5 天前的日期
-                const today = new Date().toISOString().split('T')[0];
-                const fiveDaysAgo = new Date();
-                fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
-                const startDate = fiveDaysAgo.toISOString().split('T')[0];
-
-                // 2. 抓取歷史區間數據 (從 TWD 換算)
-                const historyRes = await fetch(`https://api.frankfurter.app/${startDate}..${today}?from=TWD&to=JPY,CNY`);
-                const historyData = await historyRes.json();
-
-                // 3. 找出歷史最低 (JPY/CNY)
-                let jpyHistory = [];
-                let cnyHistory = [];
-                
-                Object.values(historyData.rates).forEach(rate => {
-                    if(rate.JPY) jpyHistory.push(rate.JPY);
-                    if(rate.CNY) cnyHistory.push(rate.CNY);
-                });
-
-                lowRates.JPY = Math.min(...jpyHistory);
-                lowRates.CNY = Math.min(...cnyHistory);
-
-                // 4. 獲取最新即時匯率
-                const latestRes = await fetch(`https://api.frankfurter.app/latest?from=TWD&to=JPY,CNY`);
-                const latestData = await latestRes.json();
-                
-                currentRates.JPY = latestData.rates.JPY;
-                currentRates.CNY = latestData.rates.CNY;
-
-                updateUI();
-            } catch (error) {
-                document.getElementById('statusText').innerText = "數據抓取失敗";
-                console.error(error);
-            }
-        }
-
-        function updateUI() {
-            document.getElementById('jpyRate').innerText = currentRates.JPY.toFixed(4);
-            document.getElementById('cnyRate').innerText = currentRates.CNY.toFixed(4);
-            document.getElementById('jpyLowValue').innerText = lowRates.JPY.toFixed(4);
-            document.getElementById('cnyLowValue').innerText = lowRates.CNY.toFixed(4);
-
-            // 判斷是否為低點 (當前匯率 <= 歷史最低匯率的 100.5% 範圍內)
-            if (currentRates.JPY <= lowRates.JPY * 1.005) {
-                document.getElementById('jpyLowTag').classList.remove('hidden');
-                document.getElementById('jpyCard').classList.add('low-active');
-            }
-            if (currentRates.CNY <= lowRates.CNY * 1.005) {
-                document.getElementById('cnyLowTag').classList.remove('hidden');
-                document.getElementById('cnyCard').classList.add('low-active');
-            }
-
-            document.getElementById('statusText').innerText = `最後更新: ${new Date().toLocaleTimeString()}`;
-            convert();
-        }
-
-        function convert() {
-            const amount = document.getElementById('twdAmount').value || 0;
-            document.getElementById('jpyResult').innerText = (amount * currentRates.JPY).toLocaleString(undefined, {maximumFractionDigits: 1});
-            document.getElementById('cnyResult').innerText = (amount * currentRates.CNY).toLocaleString(undefined, {maximumFractionDigits: 2});
-        }
-
-        fetchAllData();
-    </script>
-</body>
-</html>
